@@ -1,6 +1,9 @@
 import json
 
 def store_data(file_path,data):
+    if not file_path.endswith('.json'):
+        file_path += ".json"
+
     try:
         with open("data/"+file_path,"w",encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
@@ -8,6 +11,9 @@ def store_data(file_path,data):
         print('資料存檔錯誤',file_path,e)
         
 def get_data(file_path):
+    if not file_path.endswith('.json'):
+        file_path += ".json"
+        
     try:
         with open("data/"+file_path,"r",encoding="utf-8") as f:
              data = json.load(f)
@@ -23,6 +29,9 @@ def get_data(file_path):
             print('資料讀取錯誤',file_path,e)
 
 def combined_data(file_path,new_data):
+    if not file_path.endswith('.json'):
+        file_path += ".json"
+      
     try:
         try:
             with open("data/"+file_path, 'r', encoding='utf-8') as f:
@@ -47,6 +56,9 @@ def combined_data(file_path,new_data):
         print("添加錯誤",e)
 
 def add_data(file_path,key_path,value):
+    if not file_path.endswith('.json'):
+        file_path += ".json"
+        
     try:
         try:
             with open("data/"+file_path, 'r', encoding='utf-8') as f:

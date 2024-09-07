@@ -20,6 +20,10 @@ class RDM():
     def add_restaurant(self,name):
         self.data.setdefault("_restaurants",[]).append(name)
 
+    def remove_restaurant(self,name):
+        if name in self.data.get("_restaurants",[]):
+            self.data.setdefault("_restaurants",[]).remove(name)
+
     def get_restaurants(self):
         return self.data.get("_restaurants",[])
     
@@ -31,6 +35,16 @@ class RDM():
 
     def add_dish(self,restaurant,dish_name,note):
         self.data.setdefault(restaurant,{}).setdefault("menu",{})[dish_name] =  {**self.data.get(restaurant,{}).get("menu",{}).get(dish_name,{}), **note}
+
+    def remove_dish(self,restaurant,dish_name):
+        if dish_name in self.data.get(restaurant,{}).get("menu",{}):
+            del self.data[restaurant]["menu"][dish_name]
+
+    def rename_dish(self,restaurant,dish_name,new_name):
+        if dish_name in self.data.get(restaurant,{}).get("menu",{}):
+            temp = self.data[restaurant]["menu"][dish_name]
+            del self.data[restaurant]["menu"][dish_name]
+            self.data.setdefault(restaurant,{}).setdefault("menu",{})[new_name] =  {**temp}
 
     def get_dish(self,restaurant,dish_name = None):
         if dish_name is None:

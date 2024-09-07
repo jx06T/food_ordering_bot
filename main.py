@@ -56,11 +56,25 @@ async def reload(ctx):
     await ctx.send('reloaded')
     
 # --------------------------------------------------------------------------
+
+async def add_role(interaction: discord.Interaction,user,role_name):
+    new_role =  discord.utils.get(interaction.guild.roles, name=role_name)
+    
+    if not new_role:
+        new_role =  await interaction.guild.create_role(name=role_name)
+    
+    if new_role not in user.roles:
+        await user.add_roles(new_role)
+        
+# --------------------------------------------------------------------------
+
 class SettingView(View):
-    def __init__(self,interaction:discord.Interaction,restaurant):
+    def __init__(self,interaction:discord.Interaction,restaurant,msg = "收款按鈕",name=None):
         super().__init__()
         self.interaction = interaction
         self.restaurant = restaurant
+        self.name = str(name)
+        self.this_ODM = all_orders[self.restaurant]
 
         role = interaction.guild.get_role(1281578164535164968)
         options1 = [
@@ -71,29 +85,54 @@ class SettingView(View):
         if not options1:
             options1 = [discord.SelectOption(label="沒有可選擇的成員", value="none")]
 
-        select = Select(placeholder="選擇其他負責人", options=options1, custom_id="select_option")
-        select.callback = self.select_callback 
-        self.add_item(select)
+        select1 = Select(placeholder="添加其他負責人", options=options1, custom_id="select_option")
+        select1.callback = self.select_callback 
+        self.add_item(select1)
 
         options2 = [
-            discord.SelectOption(label=k, value=k)
-            for k,v in all_orders[self.restaurant].get_bill()
+            discord.SelectOption(label=k, value= k+"$>$"+"$=$".join(v))
+            for k,v in self.this_ODM.get_bill()
         ]
 
+        # print(self.this_ODM.get_bill())
         if not options2:
-            options2 = [discord.SelectOption(label="全部交錢啦", value="none")]
+            options2 = [discord.SelectOption(label="全部交錢啦", value="none2")]
 
-        select = Select(placeholder="選擇要繳錢的人", options=options2, custom_id="select_option2")
-        select.callback = self.select_callback2 
-        self.add_item(select)
+        self.select2 = Select(placeholder="選擇要繳錢的人", options=options2, custom_id="select_option2")
+        self.select2.callback = self.select_callback2 
+        self.add_item(self.select2)
 
-        self.checkout_button = Button(label="已繳錢", style=discord.ButtonStyle.primary, custom_id="checkout")
+        self.checkout_button = Button(label=msg, style=discord.ButtonStyle.primary, custom_id="checkout")
+        self.checkout_button.callback = self.button_callback
         self.add_item(self.checkout_button)
+
+        close_button = Button(label="停止接受點餐請求"if self.this_ODM.isOpen == True else "開啟接受點餐請求", style=discord.ButtonStyle.primary, custom_id="close")
+        close_button.callback = self.close_button_callback
+        self.add_item(close_button)
+
+
+    async def button_callback(self, interaction: discord.Interaction):
+        if not self.name is None and self.name != "None":
+            self.this_ODM.checkout(self.name)
+            await interaction.channel.send(self.name+" 已繳錢")
+            await interaction.response.edit_message(content='管理介面',view=SettingView(self.interaction,self.restaurant))
+        else:
+            await interaction.response.send_message("先選擇要繳錢的人", ephemeral=True)
+
 
     async def select_callback2(self, interaction: discord.Interaction):
         selected_value = interaction.data['values'][0]  # 獲取選擇的值
-        await self.checkout_button.edit(label=selected_value)
-        pass
+        if selected_value == "none2":
+            await interaction.response.edit_message(content='管理介面',view=SettingView(self.interaction,self.restaurant))
+            return
+        
+        # selected_option = next((option for option in self.select2.options if option.value == selected_value), None)
+        selected_option = selected_value.split("$>$")[0]
+        dishes = selected_value.split("$>$")[1].split("$=$")
+        menu = RESTAURANT_MANAGER.get_dish(self.restaurant)
+        amount = sum( menu.get(x,{}).get('price',0) for x in dishes )
+
+        await interaction.response.edit_message(content=f'{selected_option} 應繳 {amount} 元',view=SettingView(self.interaction,self.restaurant,f'按此確認 {selected_option} 已繳 {amount} 元',selected_option))
 
     async def select_callback(self, interaction: discord.Interaction):
         selected_value = interaction.data['values'][0]  # 獲取選擇的值
@@ -105,57 +144,47 @@ class SettingView(View):
         if not user:
             await interaction.response.send_message("找不到該使用者", ephemeral=True)
             return
-        
-        if self.restaurant not in all_orders:
-            await interaction.response.send_message("點餐已結束", ephemeral=True)
-            return
-        
-        add_role(interaction,user,all_orders[self.restaurant].identity_group)
-        await interaction.response.send_message(f"已添加 {user.display_name }為負責人，他可以開始使用 '/manage' 命令", ephemeral=True)
+            
+        await add_role(interaction,user,self.this_ODM.identity_group)
+        await interaction.response.send_message(f"已添加 {user.display_name }為負責人，他可以開始使用 '/manage' 命令")
 
     @discord.ui.button(label="產生統計列表", style=discord.ButtonStyle.primary, custom_id="list")
     async def list_button_callback(self, interaction: discord.Interaction, button: Button):
-        if self.restaurant not in all_orders:
-            await interaction.response.send_message("點餐已結束", ephemeral=True)
-            return
-        
         menu = RESTAURANT_MANAGER.get_dish(self.restaurant)
-        order_list =  all_orders[self.restaurant].get_list()
+        order_list =  self.this_ODM.get_list()
         order_list_text = "\n".join([ f"{b} × {a}" for a,b in order_list])
-        
-        # embed = discord.Embed(title="統計")
-        # embed.add_field(name="品項", value="\n".join([str(a) for a,_ in order_list]), inline=True)
-        # embed.add_field(name="數量", value="\n".join([str(b) for _,b in order_list]), inline=True)
+
         try:
             total = sum( menu.get(str(a),{}).get('price',None)*b for a,b in order_list)
             await interaction.response.send_message(f"{order_list_text}\n共 {total} 元")
         except:
             total = sum( menu.get(str(a),{}).get('price',0)*b for a,b in order_list)
-            await interaction.response.send_message(f"有餐點價錢填寫不正確，約 {total} 元以上",embed=embed)
+            await interaction.response.send_message(f"有餐點價錢填寫不正確，約 {total} 元以上")
+
+    @discord.ui.button(label="產生未繳錢列表", style=discord.ButtonStyle.primary, custom_id="list_debtor")
+    async def list_button_callback2(self, interaction: discord.Interaction, button: Button):
+        menu = RESTAURANT_MANAGER.get_dish(self.restaurant)
+        all_order_list_text =  "-----------------------\n未繳錢者：\n"+"\n".join([
+            f"{k} - {', '.join([ vp+'('+str(menu.get(vp,{}).get('price','?'))+')' for vp in v])}"
+            for k,v in self.this_ODM.get_bill()
+        ])   
+        await interaction.response.send_message(all_order_list_text)
+
+    async def close_button_callback(self, interaction: discord.Interaction):
+        self.this_ODM.isOpen = not self.this_ODM.isOpen
+        await interaction.response.edit_message(content='管理介面',view=SettingView(self.interaction,self.restaurant))
+        await interaction.channel.send("已停止接受點餐請求" if self.this_ODM.isOpen == False else "已開使接受點餐請求")
 
 
-    @discord.ui.button(label="停止接受點餐請求", style=discord.ButtonStyle.primary, custom_id="close")
-    async def close_button_callback(self, interaction: discord.Interaction, button: Button):
-        if self.restaurant not in all_orders:
-            await interaction.response.send_message("點餐已結束", ephemeral=True)
-            return
-
-        all_orders[self.restaurant].isOpen = False
-        await interaction.response.send_message("已停止接受點餐請求")
-
-    @discord.ui.button(label="關閉此討論串並收回零時身分組", style=discord.ButtonStyle.primary, custom_id="finish")
+    @discord.ui.button(label="關閉此討論串並收回臨時身分組", style=discord.ButtonStyle.primary, custom_id="finish")
     async def finish_button_callback(self, interaction: discord.Interaction, button: Button):
-        if self.restaurant not in all_orders:
-            await interaction.response.send_message("點餐已結束", ephemeral=True)
-            return
-
-        all_orders[self.restaurant].isOpen = False
+        self.this_ODM.isOpen = False
         channel = self.interaction.channel
         await interaction.response.send_message("已結束", ephemeral=True)
         if isinstance(channel, discord.Thread):
             await channel.edit(name=self.restaurant+"--已結束")
     
-        role_name = all_orders[self.restaurant].identity_group
+        role_name = self.this_ODM.identity_group
         role =  discord.utils.get(interaction.guild.roles, name=role_name)
         if role:
             await role.delete()
@@ -183,24 +212,14 @@ class SetNumberModal(discord.ui.Modal, title = "第一次點餐請綁訂座號")
             await interaction.response.send_message(f"綁定{user}=>{str(number)}，且你點了 {self.dish} {str(self.price)} 元",ephemeral=True)
         else:
             await interaction.response.send_message(f"綁定{user}=>{str(number)}，且你幫 {self.other_number}號 點了 {self.dish} {str(self.price)} 元",ephemeral=True)
-        # f"{vp}({menu.get(vp,{}).get('price','?')})"
+
         menu = RESTAURANT_MANAGER.get_dish(self.restaurant)
-        all_order_list_text =  "點餐紀錄\n-----------------------\n"+"\n".join([
-            f"{k} - {', '.join([ vp+'('+menu.get(vp,{}).get('price','?')+')' for vp in v])}"
+        all_order_list_text =  "-----------------------\n點餐紀錄：\n"+"\n".join([
+            f"{k} - {', '.join([ vp+'('+str(menu.get(vp,{}).get('price','?'))+')' for vp in v])}"
             for k,v in all_orders[self.restaurant].all_order_list()
         ])   
         await interaction.channel.send(all_order_list_text)
 
-# --------------------------------------------------------------------------
-
-async def add_role(interaction: discord.Interaction,user,role_name):
-    new_role =  discord.utils.get(interaction.guild.roles, name=role_name)
-    
-    if not new_role:
-        new_role =  await interaction.guild.create_role(name=role_name)
-    
-    if new_role not in user.roles:
-        await user.add_roles(new_role)
 # --------------------------------------------------------------------------
 
 @bot.tree.command(name = "creat", description = "創建訂餐活動，第一次點的餐廳請附上菜單圖片")
@@ -236,7 +255,7 @@ async def creat(interaction: discord.Interaction,restaurant:str,menu:discord.Att
     image_paths = RESTAURANT_MANAGER.get_image(restaurant)
     files = [discord.File(image_path, filename=f"image{i+1}.jpg") for i, image_path in enumerate(image_paths)]
 
-    msg =  await MAIN_CHANNEL.send(f"@everyone {interaction.user.name} 已發起 {restaurant} 訂餐活動！請至下方討論串中查看菜單以及點餐")
+    msg =  await MAIN_CHANNEL.send(f"@everyone {interaction.user.mention} 已發起 {restaurant} 訂餐活動！請至下方討論串中查看菜單以及點餐")
     thread = await MAIN_CHANNEL.create_thread(name=f"{restaurant}--訂餐活動！",message=msg)
     await thread.send(f"菜單如下，使用 '/order' 命令點餐", files=files)
 
@@ -260,8 +279,8 @@ async def creat_autocomplete(interaction: discord.Interaction, current: str) -> 
 # --------------------------------------------------------------------------
     
 @bot.tree.command(name = "order", description = "點餐，若點別人點過的東西請選擇提示的選項，若是第一個點的請填入價錢")
-@app_commands.describe(price="協助填寫價錢",other_number = "若幫別人代訂請填寫他的座號")
-async def order(interaction: discord.Interaction,dish:str,price:int = None,other_number:int = None):
+@app_commands.describe(price="協助填寫價錢",other_number = "若幫別人代訂請填寫他的座號",advanced = "編輯菜單用")
+async def order(interaction: discord.Interaction,dish:str,price:int = None,other_number:int = None,advanced:str = None):
     if not str(interaction.channel).endswith("--訂餐活動！"):
         await interaction.response.send_message(content="請在討論串點餐",ephemeral=True)
         return 
@@ -274,7 +293,23 @@ async def order(interaction: discord.Interaction,dish:str,price:int = None,other
             await interaction.response.send_message(content="第一個點此餐點請填寫價錢",ephemeral=True)
             return 
     else:
+        if dish in menu:
+            await interaction.channel.send(f"{interaction.user.mention} 更改 {dish} 的價錢為 {price}")
         RESTAURANT_MANAGER.add_dish(restaurant,dish,{"price":price})
+
+    if not advanced is None:
+        if advanced == "remove":
+            RESTAURANT_MANAGER.remove_dish(restaurant,dish)
+            await interaction.response.send_message(content=f"{interaction.user.mention} 移除了 {dish}")
+            return
+        elif advanced.startswith("rename:"):
+            new_name = advanced[7:]
+            RESTAURANT_MANAGER.rename_dish(restaurant,dish,new_name)
+            await interaction.response.send_message(content=f"{interaction.user.mention} 更改 {dish} 為 {new_name}")
+            return
+        
+        await interaction.response.send_message(content="使用進階選項來修改菜單，若使用此參數則不會觸發點餐行動",ephemeral=True)
+        return
 
     price = RESTAURANT_MANAGER.get_dish(restaurant,dish).get("price",price)
     user = interaction.user
@@ -316,8 +351,9 @@ async def order_autocomplete(interaction: discord.Interaction, current: str) -> 
         
     restaurant =str(interaction.channel)[:-7]
     else_option = str(current.lower())[:99]
-
+    
     menu = RESTAURANT_MANAGER.get_dish(restaurant)
+    # print(menu)
     options = [
         app_commands.Choice(name=f"{key} ({value.get('price','?')})", value=key)
         for key, value in menu.items() if current.lower() in key.lower()
@@ -339,13 +375,22 @@ async def cancel(interaction: discord.Interaction,dish:str):
     restaurant = str(interaction.channel)[:-7]
     if restaurant not in all_orders:
         await interaction.response.send_message(content="點餐活動已結束",ephemeral=True)
+        return
+    
+    if not all_orders[restaurant].isOpen:
+        await interaction.response.send_message(content="此點餐活動已不接受修改",ephemeral=True)
+        return
 
     user = interaction.user
-    number = DATA.get_data("people").get(user.name,None)
-    all_orders[restaurant].remove_order(number,dish.split("$=$")[0],dish.split("$=$")[1])
+    all_orders[restaurant].remove_order(dish.split("$=$")[0],dish.split("$=$")[1])
 
     await interaction.response.send_message(content="成功移除 "+dish.split("$=$")[1],ephemeral=True)
-    await interaction.channel.send(all_orders[restaurant].all_order_list())
+    menu = RESTAURANT_MANAGER.get_dish(restaurant)
+    all_order_list_text =  "點餐紀錄\n-----------------------\n"+"\n".join([
+        f"{k} - {', '.join([ vp+'('+str(menu.get(vp,{}).get('price','?'))+')' for vp in v])}"
+        for k,v in all_orders[restaurant].all_order_list()
+    ]) 
+    await interaction.channel.send(all_order_list_text)
 
 
 @cancel.autocomplete('dish')
@@ -364,7 +409,7 @@ async def order_autocomplete(interaction: discord.Interaction, current: str) -> 
         return [app_commands.Choice(name="點餐活動已結束", value="xx")]
 
     ordered_dish = all_orders[restaurant].get_order(number)
-    print(ordered_dish)
+    # print(ordered_dish)
     options = [
         app_commands.Choice(name=f'{D["name"]} ({D["type"]})', value= D["source"] +"$=$"+ D["name"])
         for D in ordered_dish
@@ -387,10 +432,11 @@ async def manage(interaction: discord.Interaction):
         return
     
     role_name = all_orders[restaurant].identity_group
-    new_role =  discord.utils.get(interaction.guild.roles, name=role_name)
+    temp_role =  discord.utils.get(interaction.guild.roles, name=role_name)
+    fixed_role = interaction.guild.get_role(1281962961740501036)
     user = interaction.user
 
-    if new_role not in user.roles:
+    if temp_role not in user.roles and fixed_role not in user.roles:
         await interaction.response.send_message(content="權限不足",ephemeral=True)
         return     
         

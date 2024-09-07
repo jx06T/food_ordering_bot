@@ -9,16 +9,17 @@ class ODM():
         
         file_path = "data/order/" + file_path
 
-        try:
-            with open(file_path,"r",encoding="utf-8") as f:
-                self.data = json.load(f)
-        except Exception as e :
-            with open(file_path,"w",encoding="utf-8") as f:
-                json.dump({"_all":{}}, f, ensure_ascii=False, indent=4)
-                self.data = {"_all":{}}
+        # try:
+        #     with open(file_path,"r",encoding="utf-8") as f:
+        #         self.data = json.load(f)
+        # except Exception as e :
+        #     with open(file_path,"w",encoding="utf-8") as f:
+        #         json.dump({"_all":{}}, f, ensure_ascii=False, indent=4)
+        #         self.data = {"_all":{}}
 
+        self.data = {"_all":{}}
         self.isOpen = True
-        self.bill = None
+        self.bill = {"_all":{}}
         self.file_path = file_path
         self.identity_group = datetime.now().strftime("%m/%d") + restaurant + "發起者"
 
@@ -28,23 +29,28 @@ class ODM():
 
         if other_number is not None:
             self.data.setdefault(f"[{other_number}]({user_number}代)",[]).append(dish)
-            self.data["_all"][dish].append(other_number)
+            self.bill.setdefault(f"[{other_number}]({user_number}代)",[]).append(dish)
+            self.data["_all"][dish].append(f"[{other_number}]({user_number}代)")
 
         else:
             self.data.setdefault(f"[{user_number}]",[]).append(dish)
-            self.data["_all"][dish].append(user_number)
+            self.bill.setdefault(f"[{user_number}]",[]).append(dish)
+            self.data["_all"][dish].append(f"[{user_number}]")
 
-    def remove_order(self,user_number,path,dish):
-        self.data.get(path,[]).remove(dish)
-
+    def remove_order(self,path,dish):
         if dish not in self.data["_all"]:
             self.data["_all"][dish] = []
             return
         
-        self.data["_all"][dish].remove(user_number)
+        self.data["_all"][dish].remove(path)
 
+        self.data.get(path,[]).remove(dish)
         if len(self.data.get(path,[1,1])) == 0:
             del self.data[path]
+
+        self.bill.get(path,[]).remove(dish)
+        if len(self.bill.get(path,[1,1])) == 0:
+            del self.bill[path]
 
     def transform_data(self, user_number):
         result = []
@@ -63,19 +69,13 @@ class ODM():
         ]
 
     def get_bill(self):
-        if self.bill is None:
-            self.bill = copy.deepcopy(self.data)
-            
         return [
             (key,value)
             for key, value in self.bill.items() if  key != "_all"
         ]
 
-    def checkout(self,user_name):
-        matching_keys = [key for key in self.bill.keys() if f'[{user_name}]' in key]
-        for key in matching_keys:
-            del self.bill[key]
-        return self.bill
+    def checkout(self,path):
+        del self.bill[path]
 
     def get_list(self):
         return [
@@ -84,12 +84,12 @@ class ODM():
             for key, value in self.data["_all"].items() 
         ]
 
-    def save_to_file(self):
-        try:
-            with open(self.file_path,"w",encoding="utf-8") as f:
-                json.dump(self.data, f, ensure_ascii=False, indent=4)
-        except Exception as e :
-            print('資料存檔錯誤',self.file_path,e)
+    # def save_to_file(self):
+    #     try:
+    #         with open(self.file_path,"w",encoding="utf-8") as f:
+    #             json.dump(self.data, f, ensure_ascii=False, indent=4)
+    #     except Exception as e :
+    #         print('資料存檔錯誤',self.file_path,e)
            
 if __name__ == "__main__":
     manager = ODM("test.json")

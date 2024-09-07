@@ -18,32 +18,19 @@ class RDM():
         self.file_path = file_path
 
     def add_restaurant(self,name):
-        if "_restaurants" not in self.data:
-            self.data["_restaurants"] = []
-
-        self.data["_restaurants"].append(name)
+        self.data.setdefault("_restaurants",[]).append(name)
 
     def get_restaurants(self):
         return self.data.get("_restaurants",[])
     
     def add_image(self,restaurant,img_path):
-        if restaurant not in self.data:
-            self.data[restaurant] = {}
-        if "image" not in self.data[restaurant]:
-            self.data[restaurant]["image"] = []
-
-        self.data[restaurant]["image"].append(img_path)
+        self.data.setdefault(restaurant,{}).setdefault("image",[]).append(img_path)
 
     def get_image(self,restaurant):
         return self.data.get(restaurant,{}).get("image",[])
 
     def add_dish(self,restaurant,dish_name,note):
-        if restaurant not in self.data:
-            self.data[restaurant] = {}
-        if "menu" not in self.data[restaurant]:
-            self.data[restaurant]["menu"] = {}
-            
-        self.data[restaurant]["menu"][dish_name] =  {**self.data[restaurant]["menu"].get(dish_name,{}), **note}
+        self.data.setdefault(restaurant,{}).setdefault("menu",{})[dish_name] =  {**self.data.get(restaurant,{}).get("menu",{}).get(dish_name,{}), **note}
 
     def get_dish(self,restaurant,dish_name = None):
         if dish_name is None:

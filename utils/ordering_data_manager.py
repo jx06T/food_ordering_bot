@@ -1,7 +1,9 @@
 import json
+from datetime import datetime
+import copy
 
 class ODM():
-    def __init__(self,file_path) -> None:
+    def __init__(self,file_path,restaurant) -> None:
         if not file_path.endswith('.json'):
             file_path += ".json"
         
@@ -15,43 +17,71 @@ class ODM():
                 json.dump({"_all":{}}, f, ensure_ascii=False, indent=4)
                 self.data = {"_all":{}}
 
-
+        self.isOpen = True
+        self.bill = None
         self.file_path = file_path
+        self.identity_group = datetime.now().strftime("%m/%d") + restaurant + "發起者"
 
     def add_order(self,user_number,dish,other_number = None):
         if dish not in self.data["_all"]:
             self.data["_all"][dish] = []
 
         if other_number is not None:
-            if f"_{other_number}_({user_number}代)" not in self.data:
-                self.data[f"_{other_number}_({user_number}代)"]  = []
-
-            self.data[f"_{other_number}_({user_number}代)"].append(dish)
+            self.data.setdefault(f"[{other_number}]({user_number}代)",[]).append(dish)
             self.data["_all"][dish].append(other_number)
 
         else:
-            if f"_{user_number}_" not in self.data:
-                self.data[f"_{user_number}_"] = []    
-                
-            self.data[f"_{user_number}_"].append(dish)
+            self.data.setdefault(f"[{user_number}]",[]).append(dish)
             self.data["_all"][dish].append(user_number)
 
-    def remove_order(self,user_number,dish,other_number = None):
+    def remove_order(self,user_number,path,dish):
+        self.data.get(path,[]).remove(dish)
+
         if dish not in self.data["_all"]:
             self.data["_all"][dish] = []
+            return
+        
+        self.data["_all"][dish].remove(user_number)
 
-        if other_number is not None:
-            self.data[f"_{other_number}_({user_number}代)"] = dish
-            self.data["_all"][dish].append(other_number)
+        if len(self.data.get(path,[1,1])) == 0:
+            del self.data[path]
 
-        else:
-            self.data[f"_{user_number}_"] = dish
-            self.data["_all"][dish].append(user_number)
+    def transform_data(self, user_number):
+        result = []
+        for key, value in self.data.items():
+            if  key != "_all" and ( f"[{user_number}]" in key or f"({user_number}代)" in key):
+                result.extend([{"source" :key ,"name": item, "type": ("幫別人訂的" if f"({user_number}代)" in key else ("你訂的" if f"[{user_number}](" not in key else "別人幫你訂的")) } for item in value])
+        return result
 
     def get_order(self,user_number):
+        return self.transform_data(user_number)
+
+    def all_order_list(self):
         return [
-            {"name":value ,"type": "幫別人訂的" if f"({user_number}代)" in key else ("你定的" if f"_{user_number}_" not in key else "別人幫你訂的")}
-            for key,value in self.data if not key == "_all" and ( f"_{user_number}_" in key or f"({user_number}代)" in key)
+            (key,value)
+            for key, value in self.data.items() if  key != "_all"
+        ]
+
+    def get_bill(self):
+        if self.bill is None:
+            self.bill = copy.deepcopy(self.data)
+            
+        return [
+            (key,value)
+            for key, value in self.bill.items() if  key != "_all"
+        ]
+
+    def checkout(self,user_name):
+        matching_keys = [key for key in self.bill.keys() if f'[{user_name}]' in key]
+        for key in matching_keys:
+            del self.bill[key]
+        return self.bill
+
+    def get_list(self):
+        return [
+            # ("name":key,"count":len(value))
+            (key,len(value))
+            for key, value in self.data["_all"].items() 
         ]
 
     def save_to_file(self):

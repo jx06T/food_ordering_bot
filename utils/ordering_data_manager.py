@@ -1,9 +1,13 @@
 import json
 from datetime import datetime
+import random
 import copy
 
 class ODM():
-    def __init__(self,file_path,restaurant) -> None:
+    # def __init__(self,file_path,restaurant) -> None:
+    def __init__(self,restaurant,rand) -> None:
+        file_path = restaurant
+        
         if not file_path.endswith('.json'):
             file_path += ".json"
         
@@ -16,12 +20,16 @@ class ODM():
         #     with open(file_path,"w",encoding="utf-8") as f:
         #         json.dump({"_all":{}}, f, ensure_ascii=False, indent=4)
         #         self.data = {"_all":{}}
-
+        # rand = random.randint(100, 999)
+        
         self.data = {"_all":{}}
         self.isOpen = True
+        self.isEnd = False
+        self.restaurant = restaurant
+        self.nick_name = f'{restaurant}_{rand}'
         self.bill = {"_all":{}}
         self.file_path = file_path
-        self.identity_group = datetime.now().strftime("%m/%d") + restaurant + "發起者"
+        self.identity_group = f"{restaurant}_{rand} 發起者"
 
     def add_order(self,user_number,dish,other_number = None):
         if dish not in self.data["_all"]:
@@ -92,5 +100,5 @@ class ODM():
     #         print('資料存檔錯誤',self.file_path,e)
            
 if __name__ == "__main__":
-    manager = ODM("test.json")
+    manager = ODM("test")
    

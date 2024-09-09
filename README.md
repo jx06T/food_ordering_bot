@@ -1,0 +1,1 @@
+https://discord.com/oauth2/authorize?client_id=1281228461712867432&permissions=563330326628352&response_type=code&redirect_uri=https%3A%2F%2Fdiscord.com%2Foauth2%2Fauthorize%3Fclient_id%3D1281228461712867432&integration_type=0&scope=identify+guilds+messages.read+applications.commands+applications.commands.permissions.update+role_connections.write+bot

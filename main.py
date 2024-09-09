@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import discord 
 from discord.ext import commands
-from discord.ui import View, Button, TextInput,Select
+from discord.ui import View, Button, TextInput,Select,UserSelect
 from discord import app_commands
 from typing import Literal,Optional,List
 
@@ -92,17 +92,20 @@ class SettingView(View):
         self.this_ODM = all_orders[self.thread_id]
 
         
-        role = interaction.guild.get_role(1281578164535164968)
-        options1 = [
-            discord.SelectOption(label=member.display_name, value=str(member.id))
-            for member in role.members
-            if not member.bot  
-        ]
+        # role = interaction.guild.get_role(1235979539306381423)
+        # options1 = [
+        #     # discord.SelectOption(label=member.display_name, value=str(member.id))
+        #     member
+        #     for member in role.members
+        #     if not member.bot  
+        # ]
+        # [:25]
         
-        if not options1:
-            options1 = [discord.SelectOption(label="沒有可選擇的成員", value="none")]
+        # if not options1 or len(options1) == 0:
+            # options1 = [discord.SelectOption(label="沒有可選擇的成員", value="none")]
 
-        select1 = Select(placeholder="添加其他負責人", options=options1, custom_id="select_option")
+        # select1 = Select(placeholder="添加其他負責人", options=options1, custom_id="select_option")
+        select1 = UserSelect(custom_id = "select_option")
         select1.callback = self.select_callback 
         self.add_item(select1)
         
@@ -156,6 +159,7 @@ class SettingView(View):
 
 
     async def select_callback(self, interaction: discord.Interaction):
+        print(interaction)
         selected_value = interaction.data['values'][0] 
         if selected_value == "none":
             await interaction.response.send_message("就說沒有可選擇的成員", ephemeral=True)
@@ -475,7 +479,8 @@ async def manage(interaction: discord.Interaction):
     restaurant = this_ODM.restaurant
     role_name = this_ODM.identity_group
     temp_role =  discord.utils.get(interaction.guild.roles, name=role_name)
-    fixed_role = interaction.guild.get_role(1281962961740501036)
+    # fixed_role = interaction.guild.get_role(1282523111325171853)
+    fixed_role = interaction.guild.get_role(int(os.getenv("FIXED_ROLE_ID")))
     user = interaction.user
 
     if temp_role not in user.roles and fixed_role not in user.roles:

@@ -46,7 +46,7 @@ async def on_ready():
     global MAIN_CHANNEL
     MAIN_CHANNEL = bot.get_channel(int(os.getenv("MAIN_CHANNEL_ID"))) 
 
-    await MAIN_CHANNEL.send(f'訂餐機器人上線')
+    # await MAIN_CHANNEL.send(f'訂餐機器人上線')
     await bot.tree.sync()
 
 @commands.is_owner()
@@ -472,9 +472,9 @@ async def manage(interaction: discord.Interaction):
         return
         
     this_ODM = all_orders[thread_id]
-    if not this_ODM.isOpen:
-        await interaction.response.send_message(content="此點餐活動已不接受修改",ephemeral=True)
-        return
+    # if not this_ODM.isOpen:
+    #     await interaction.response.send_message(content="此點餐活動已不接受修改",ephemeral=True)
+    #     return
 
     restaurant = this_ODM.restaurant
     role_name = this_ODM.identity_group

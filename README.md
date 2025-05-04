@@ -36,7 +36,17 @@ DISCORD_BOT_KEY = <機器人 token>
 
 ## 特色
 - 會記錄使用過的店家以及菜單
+- 整合收錢紀錄功能
+- 菜單輸入具有 auto complete 功能
+- 使用提示完整
 
+## 螢幕截圖
+![1VVTDkE.png (1920×1020)](https://i.imgur.com/1VVTDkE.png)
+![uiKGAPD.png (1920×1020)](https://i.imgur.com/uiKGAPD.png)
+![Xy5Dhcu.png (1920×1020)](https://i.imgur.com/Xy5Dhcu.png)
+![4vpXaP2.png (1920×1020)](https://i.imgur.com/4vpXaP2.png)
+![n38dXMF.png (1920×1020)](https://i.imgur.com/n38dXMF.png)
+![UwBrrqS.png (1920×1020)](https://i.imgur.com/UwBrrqS.png)
 
 
 

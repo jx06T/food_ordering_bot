@@ -2,8 +2,6 @@
 ###### *version-V1.0* 
 ---
 
-[邀請連結](https://discord.com/oauth2/authorize?client_id=1281228461712867432&permissions=563330326628352&response_type=code&redirect_uri=https%3A%2F%2Fdiscord.com%2Foauth2%2Fauthorize%3Fclient_id%3D1281228461712867432&integration_type=0&scope=identify+guilds+messages.read+applications.commands+applications.commands.permissions.update+role_connections.write+bot)(此邀請連結之機器人沒有部署在任何穩定平台，機器人不一定會響應）
-
 ## 使用方法
 1. 在 discord 中新建一個機器人並取得 token，方法可以參考[網路文章](https://hackmd.io/@smallshawn95/python_discord_bot_base)
 2. clone 本儲存庫 ( `git clone https://github.com/jx06T/food_ordering_bot.git` )
@@ -34,8 +32,10 @@ DISCORD_BOT_KEY = <機器人 token>
     - 修改名稱：此參數輸入 `rename:` + <修改後名稱>
     - 刪除：此參數輸入 `remove`
  
-
 ### 取消訂餐 /cancel
+
+## 特色
+- 會記錄使用過的店家以及菜單
 
 
 
